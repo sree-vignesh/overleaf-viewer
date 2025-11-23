@@ -56,22 +56,25 @@ export default function Home() {
 
         {/* Generated Link Display */}
         {generatedLink && (
-          <div className="flex w-full max-w-md items-center justify-between gap-2 mb-4 relative">
-            <div className="flex-1 bg-zinc-950 border border-zinc-900 rounded-md px-3 py-2 flex items-center justify-center">
+          <div className="flex w-full max-w-md mb-4 relative flex-col sm:flex-row items-center sm:items-stretch gap-2">
+            {/* Link container */}
+            <div className="w-full bg-zinc-950 border border-zinc-900 rounded-md px-3 py-2 flex items-center justify-center overflow-x-auto whitespace-nowrap">
               <a
                 href={generatedLink}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="truncate text-white font-light text-center "
+                className="truncate text-white font-light text-center"
               >
                 {generatedLink}
               </a>
             </div>
+
+            {/* Copy button */}
             <button
               onClick={handleCopy}
-              className="p-2 rounded-md bg-gray-200 dark:bg-zinc-700 hover:bg-gray-300 dark:hover:bg-zinc-600 transition-colors relative"
+              className="p-2 rounded-md bg-black sm:bg-zinc-700 hover:bg-zinc-600 transition-colors relative w-full sm:w-auto flex items-center justify-center border border-zinc-500 sm:border-0"
             >
-              <FiCopy size={18} />
+              <FiCopy size={18} color="white" />
               {copied && (
                 <span className="absolute -top-6 right-0 bg-zinc-700 text-white text-m px-2 py-1 rounded-md">
                   Copied!
@@ -80,7 +83,7 @@ export default function Home() {
             </button>
           </div>
         )}
-        <div className="w-full max-w-max p-4 mb-10 bg-black rounded-md text-sm text-zinc-300">
+        <div className="w-full max-w-max p-4  mb-10 bg-black rounded-md text-sm text-zinc-300">
           <p>
             <strong>
               Open project → Sharing → Turn on link sharing → Get public link
