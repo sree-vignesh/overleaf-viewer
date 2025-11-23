@@ -3,34 +3,40 @@ import axios from "axios";
 import NodeCache from "node-cache";
 
 // ---------------------------
-// Cache
+// Simple in-memory cache
 // ---------------------------
-const cache = new NodeCache({ stdTTL: 1200 });
+const cache = new NodeCache({ stdTTL: 600 }); // 10 min TTL
 
 // ---------------------------
-// Helper Functions
+// Cache keys helpers
 // ---------------------------
+const projectIdKey = (token) => `projectId-${token}`;
+const csrfKey = (token) => `csrf-${token}`;
+const cookieKey = (token) => `cookie-${token}`;
+const refererKey = (token) => `referer-${token}`;
+const titleKey = (token) => `title-${token}`;
+
+// ---------------------------
+// Helpers
+// ---------------------------
+const base = "https://www.overleaf.com";
+
 const defaultHeader = () => ({
   "User-Agent":
     "Mozilla/5.0 (X11; Linux x86_64; rv:114.0) Gecko/20100101 Firefox/114.0",
-  Origin: "https://www.overleaf.com",
+  Origin: base,
 });
-
-const getCSRF = (html) => {
-  const match = html.match(/<meta name="ol-csrfToken" content="(.*?)">/);
-  return match?.[1] || null;
-};
-
-const getProjectTitle = (html) => {
-  const match = html.match(/<meta name="og:title" content="(.*?)">/);
-  return match?.[1] || "Untitled";
-};
 
 const getCookieString = (cookies = []) =>
   cookies.map((c) => c.split(";")[0]).join(";");
 
+const extractCSRF = (html) =>
+  html.match(/<meta name="ol-csrfToken" content="(.*?)">/)?.[1];
+
+const getProjectTitle = (html) =>
+  html.match(/<meta name="og:title" content="(.*?)">/)?.[1];
+
 const errorHandler = (msg, status = 500) => {
-  console.error("Error:", msg);
   const err = new Error(msg);
   err.status = status;
   throw err;
@@ -39,30 +45,35 @@ const errorHandler = (msg, status = 500) => {
 // ---------------------------
 // Overleaf Steps
 // ---------------------------
+
 async function readPage(token) {
-  console.log(`[STEP] Reading Overleaf page for token: ${token}`);
-  const res = await axios.get(`https://www.overleaf.com/read/${token}`, {
+  console.log("[STEP] Reading Overleaf page...");
+  const res = await axios.get(`${base}/read/${token}`, {
     headers: defaultHeader(),
     validateStatus: () => true,
   });
 
-  console.log(`[STEP] Read page status: ${res.status}`);
   if (res.status !== 200) errorHandler("Read page failed", res.status);
 
-  const csrf = getCSRF(res.data);
-  if (!csrf) errorHandler("CSRF token not found on read page");
-
+  const csrf = extractCSRF(res.data);
   const cookie = getCookieString(res.headers["set-cookie"] || []);
   const referer = res.request.res.responseUrl;
 
-  console.log(`[INFO] CSRF: ${csrf}, Cookie length: ${cookie.length}`);
-  return { csrf, cookie, referer };
+  cache.set(csrfKey(token), csrf);
+  cache.set(cookieKey(token), cookie);
+  cache.set(refererKey(token), referer);
+
+  console.log("[INFO] CSRF, Cookie, Referer stored in cache");
 }
 
-async function grantAccess(token, csrf, cookie, referer) {
-  console.log(`[STEP] Granting access for token: ${token}`);
+async function grantAccess(token) {
+  console.log("[STEP] Granting access...");
+  const csrf = cache.get(csrfKey(token));
+  const cookie = cache.get(cookieKey(token));
+  const referer = cache.get(refererKey(token));
+
   const res = await axios.post(
-    `https://www.overleaf.com/read/${token}/grant`,
+    `${base}/read/${token}/grant`,
     { _csrf: csrf },
     {
       headers: { ...defaultHeader(), Cookie: cookie, Referer: referer },
@@ -70,109 +81,114 @@ async function grantAccess(token, csrf, cookie, referer) {
     }
   );
 
-  console.log(`[STEP] Grant response:`, res.data);
   if (!res.data?.redirect) errorHandler("Grant failed", res.status);
 
   const projectId = res.data.redirect.replace("/project/", "");
   const grantCookie = getCookieString(res.headers["set-cookie"] || []);
-  console.log(`[INFO] Project ID: ${projectId}`);
-  return { projectId, cookie: grantCookie || cookie };
+  cache.set(cookieKey(token), grantCookie || cookie);
+  cache.set(projectIdKey(token), projectId);
+
+  console.log("[INFO] Access granted, projectId stored:", projectId);
 }
 
-async function compileProject(projectId, csrf, cookie) {
-  console.log(`[STEP] Compiling project ID: ${projectId}`);
-  const projectReferer = `https://www.overleaf.com/project/${projectId}`;
+async function loadProject(token) {
+  console.log("[STEP] Loading project page...");
+  const projectId = cache.get(projectIdKey(token));
+  const cookie = cache.get(cookieKey(token));
+
+  const res = await axios.get(`${base}/project/${projectId}`, {
+    headers: { ...defaultHeader(), Cookie: cookie },
+    validateStatus: () => true,
+  });
+
+  if (res.status !== 200) errorHandler("Project load failed", res.status);
+
+  const title = getProjectTitle(res.data);
+  if (title) cache.set(titleKey(token), title);
+
+  console.log("[INFO] Project title stored:", title);
+}
+
+async function compileProject(token) {
+  console.log("[STEP] Compiling project...");
+  const projectId = cache.get(projectIdKey(token));
+  const csrf = cache.get(csrfKey(token));
+  const cookie = cache.get(cookieKey(token));
 
   const res = await axios.post(
-    `https://www.overleaf.com/project/${projectId}/compile?auto_compile=true`,
-    { _csrf: csrf, rootDoc_id: null, draft: false, check: "silent" },
+    `${base}/project/${projectId}/compile`,
+    {
+      rootDoc: "main.tex",
+      draft: false,
+      check: "silent",
+      incrementalCompilesEnabled: false,
+    },
     {
       headers: {
-        "Content-Type": "application/json",
-        Referer: projectReferer,
+        ...defaultHeader(),
         Cookie: cookie,
-        "User-Agent": "Mozilla/5.0 (X11; Linux x86_64)",
+        Referer: `${base}/project/${projectId}`,
+        "x-csrf-token": csrf,
+        "x-requested-with": "XMLHttpRequest",
         Accept: "application/json",
       },
       validateStatus: () => true,
     }
   );
 
-  console.log(`[STEP] Compile response status: ${res.status}`);
-  if (!res.data?.outputFiles)
-    errorHandler("Compilation failed or incomplete", res.status);
+  if (!res.data?.outputFiles) errorHandler("Compilation failed", res.status);
 
-  const pdfFile = res.data.outputFiles.find((f) => f.type === "pdf");
-  if (!pdfFile) errorHandler("PDF file not found in output files");
-
-  const pdfUrl = `${res.data.pdfDownloadDomain}${pdfFile.url}`;
-  console.log(`[INFO] PDF URL: ${pdfUrl}`);
-  return { pdfUrl, cookie };
+  console.log("[INFO] Compilation output received");
+  return res.data;
 }
 
-async function downloadPDF(pdfUrl, cookie) {
-  console.log(`[STEP] Downloading PDF from: ${pdfUrl}`);
-  const res = await axios.get(pdfUrl, {
-    responseType: "arraybuffer",
-    headers: { Cookie: cookie },
-    validateStatus: () => true,
-  });
+function buildPDFLink(compileData) {
+  console.log("[STEP] Building PDF download link...");
+  const pdfFile = compileData.outputFiles.find((f) => f.type === "pdf");
+  if (!pdfFile) errorHandler("PDF file not found after compile");
 
-  console.log(`[STEP] PDF download status: ${res.status}`);
-  if (res.status !== 200) errorHandler("PDF download failed", res.status);
+  const pdfLink = `${compileData.pdfDownloadDomain}${pdfFile.url}?compileGroup=${compileData.compileGroup}&clsiserverid=${compileData.clsiServerId}&enable_pdf_caching=true`;
 
-  return Buffer.from(res.data);
+  console.log("[INFO] PDF link built:", pdfLink);
+  return pdfLink;
 }
 
 // ---------------------------
 // API Route
 // ---------------------------
-export async function GET(req, { params: paramsPromise }) {
+export async function GET(req, context) {
   try {
-    const params = await paramsPromise; // ⚡ Must await in Next.js 14+
-    const { token } = params;
+    // ----- UNWRAP params (Next.js 14+) -----
+    const params = await context.params;
+    const token = params.token;
 
-    console.log(`[API] Received token: ${token}`);
-    if (!/^[a-z0-9]{12}$/.test(token)) {
-      return NextResponse.json(
-        { error: "Invalid token format" },
-        { status: 400 }
-      );
+    console.log("[INFO] Token received:", token);
+
+    if (!/^[a-z]{12}$/.test(token)) {
+      console.warn("[WARN] Invalid token format");
+      return NextResponse.json({ error: "Invalid token" }, { status: 400 });
     }
 
-    // Serve cached PDF if available
+    // ----- CACHE CHECK -----
     if (cache.get(token)) {
-      console.log(`[CACHE] Returning cached PDF for token: ${token}`);
-      return new Response(cache.get(token), {
-        headers: { "Content-Type": "application/pdf" },
-      });
+      console.log("[CACHE] Returning cached PDF URL");
+      return NextResponse.json({ pdf: cache.get(token) });
     }
 
-    const { csrf, cookie: readCookie, referer } = await readPage(token);
-    const { projectId, cookie } = await grantAccess(
-      token,
-      csrf,
-      readCookie,
-      referer
-    );
-    const { pdfUrl, cookie: updatedCookie } = await compileProject(
-      projectId,
-      csrf,
-      cookie
-    );
-    const pdfBuffer = await downloadPDF(pdfUrl, updatedCookie);
+    // ----- STEPS -----
+    await readPage(token);
+    await grantAccess(token);
+    await loadProject(token);
+    const compileData = await compileProject(token);
+    const pdfLink = buildPDFLink(compileData);
 
-    cache.set(token, pdfBuffer);
+    // ----- CACHE FINAL PDF URL -----
+    cache.set(token, pdfLink);
 
-    console.log(`[SUCCESS] PDF generated and cached for token: ${token}`);
-    return new Response(pdfBuffer, {
-      headers: { "Content-Type": "application/pdf" },
-    });
+    console.log("[SUCCESS] PDF link ready");
+    return NextResponse.json({ pdf: pdfLink });
   } catch (e) {
-    console.error("[ERROR]", e);
-    return NextResponse.json(
-      { error: e.message || "Unknown error" },
-      { status: e.status || 500 }
-    );
+    console.error("[ERROR]", e.message, e.status || "");
+    return NextResponse.json({ error: e.message }, { status: e.status || 500 });
   }
 }
