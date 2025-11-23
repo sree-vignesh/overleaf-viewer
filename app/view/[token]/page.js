@@ -28,8 +28,8 @@ export default function ViewPDF() {
     if (token) fetchPDF();
   }, [token]);
 
-  if (loading) return <p>Loading PDF...</p>;
-  if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
+  // if (loading) return <p>Loading PDF...</p>;
+  // if (error) return <p style={{ color: "red" }}>Error: {error}</p>;
 
   return (
     <div
@@ -41,76 +41,42 @@ export default function ViewPDF() {
       }}
     >
       {/* Top bar */}
-      <div
-        style={{
-          height: "auto",
-          backgroundColor: "#000",
-          color: "#fff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-around",
-          padding: "8px 15px",
-          boxSizing: "border-box",
-          flexShrink: 0,
-          flexWrap: "wrap",
-          columnGap: "15px",
-        }}
-      >
-        {/* Left side */}
+      {pdfUrl && (
         <div
           style={{
+            height: "auto",
+            backgroundColor: "#000",
+            color: "#fff",
             display: "flex",
             alignItems: "center",
-            gap: "10px",
+            justifyContent: "space-around",
+            padding: "8px 15px",
+            boxSizing: "border-box",
+            flexShrink: 0,
             flexWrap: "wrap",
+            columnGap: "15px",
           }}
         >
-          {/* <span style={{ fontWeight: "bold", fontSize: "14px" }}>
-            Overleaf Project PDF Viewer
-          </span> */}
-          <button
-            onClick={() => (window.location.href = "/")}
+          {/* Left side */}
+          <div
             style={{
-              color: "#000",
-              backgroundColor: "#fff",
-              border: "1px solid #fff",
-              padding: "6px 12px",
-              cursor: "pointer",
-              borderRadius: "4px",
-              transition: "all 0.2s",
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = "#fff";
-              e.target.style.color = "#000";
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.backgroundColor = "#000";
-              e.target.style.color = "#fff";
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              flexWrap: "wrap",
             }}
           >
-            Get your own link
-          </button>
-        </div>
-
-        {/* Right side */}
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            flexWrap: "wrap",
-            // marginTop: "5px",
-          }}
-        >
-          {pdfUrl && (
-            <a
-              href={pdfUrl}
-              download="project.pdf"
+            {/* <span style={{ fontWeight: "bold", fontSize: "14px" }}>
+            Overleaf Project PDF Viewer
+          </span> */}
+            <button
+              onClick={() => (window.location.href = "/")}
               style={{
                 color: "#000",
                 backgroundColor: "#fff",
                 border: "1px solid #fff",
                 padding: "6px 12px",
-                textDecoration: "none",
+                cursor: "pointer",
                 borderRadius: "4px",
                 transition: "all 0.2s",
               }}
@@ -123,16 +89,65 @@ export default function ViewPDF() {
                 e.target.style.color = "#fff";
               }}
             >
-              Download PDF
-            </a>
-          )}
+              Get your own link
+            </button>
+          </div>
+
+          {/* Right side */}
+          <div
+            style={{
+              display: "flex",
+              gap: "10px",
+              flexWrap: "wrap",
+              // marginTop: "5px",
+            }}
+          >
+            {pdfUrl && (
+              <a
+                href={pdfUrl}
+                download="project.pdf"
+                style={{
+                  color: "#000",
+                  backgroundColor: "#fff",
+                  border: "1px solid #fff",
+                  padding: "6px 12px",
+                  textDecoration: "none",
+                  borderRadius: "4px",
+                  transition: "all 0.2s",
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.backgroundColor = "#fff";
+                  e.target.style.color = "#000";
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.backgroundColor = "#000";
+                  e.target.style.color = "#fff";
+                }}
+              >
+                Download PDF
+              </a>
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* PDF viewer */}
-      <div style={{ flex: 1, minHeight: 0 }}>
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: "xxx-large",
+          fontFamily: "monospace",
+          backgroundColor: "black",
+        }}
+        // className="text-l"
+      >
         {loading && (
-          <p style={{ textAlign: "center", margin: 0 }}>Loading PDF...</p>
+          <p style={{ textAlign: "center", color: "white", margin: 0 }}>
+            Loading PDF...
+          </p>
         )}
         {error && (
           <p style={{ textAlign: "center", color: "red", margin: 0 }}>
