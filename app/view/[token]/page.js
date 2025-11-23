@@ -132,12 +132,10 @@ export default function ViewPDF() {
       {/* PDF viewer */}
       <div style={{ flex: 1, minHeight: 0 }}>
         {loading && (
-          <p style={{ textAlign: "center", marginTop: "20px" }}>
-            Loading PDF...
-          </p>
+          <p style={{ textAlign: "center", margin: 0 }}>Loading PDF...</p>
         )}
         {error && (
-          <p style={{ textAlign: "center", marginTop: "20px", color: "red" }}>
+          <p style={{ textAlign: "center", color: "red", margin: 0 }}>
             {error}
           </p>
         )}

@@ -33,8 +33,8 @@ export default function Home() {
   return (
     <div className="flex min-h-screen items-center justify-center  font-sans bg-black">
       <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-center py-32 px-6  bg-black sm:items-center">
-        <h1 className="text-4xl font-bold text-center text-white mb-8">
-          Get Your Static <span className="text-green-600">Overleaf</span> Link
+        <h1 className="text-4xl font-bold text-center font-mono text-white mb-8">
+          Get Your Static <span className="text-green-600">Overleaf</span> Link.
         </h1>
 
         {/* Input + Button */}
@@ -98,7 +98,7 @@ export default function Home() {
         {/* View in GitHub Button */}
 
         <a
-          href="https://github.com/your-repo"
+          href="https://github.com/sree-vignesh/overleaf-viewer"
           target="_blank"
           rel="noopener noreferrer"
           className="mt-10 flex items-center gap-2 rounded-md bg-black text-white px-4 py-2 hover:bg-white hover:text-black border border-white transition-colors"
