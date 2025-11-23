@@ -98,7 +98,7 @@ export default function ViewPDF() {
             display: "flex",
             gap: "10px",
             flexWrap: "wrap",
-            marginTop: "5px",
+            // marginTop: "5px",
           }}
         >
           {pdfUrl && (
