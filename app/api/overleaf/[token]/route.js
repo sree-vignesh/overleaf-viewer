@@ -5,7 +5,8 @@ import NodeCache from "node-cache";
 // ---------------------------
 // Simple in-memory cache
 // ---------------------------
-const cache = new NodeCache({ stdTTL: 600 }); // 10 min TTL
+// const cache = new NodeCache({ stdTTL: 600 }); // 10 min TTL
+const cache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
 
 // ---------------------------
 // Cache keys helpers
