@@ -1,36 +1,158 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Overleaf Viewer
 
-## Getting Started
+Overleaf Viewer is a small utility that converts a public Overleaf share link into a permanent, stable URL that always serves the latest compiled PDF. This solves the common problem where Overleaf does not provide a static `.pdf` link for public projects.
 
-First, run the development server:
+The frontend extracts the token from a standard Overleaf share URL, while the backend handles Overleaf's internal workflow (CSRF, cookies, grant access, project load, compile) and returns the final PDF URL.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+This allows you to use a stable link in resumes, portfolios, or websites without needing to manually upload updated PDFs.
+
+---
+
+## Features
+
+- Accepts public Overleaf share links of the form
+  `https://www.overleaf.com/read/<token>`
+- Generates a clean, static URL like
+  `https://overleaf-viewer.vercel.app/view/<token>`
+- Automatically retrieves CSRF token, cookies, project ID, and metadata
+- Executes Overleaf compile workflow and returns final PDF link
+- Supports caching to minimize Overleaf requests
+- No need to re-upload updated resumes or documents anywhere
+
+---
+
+## How It Works
+
+### Frontend (Next.js)
+
+The frontend provides:
+
+- A simple input box for the Overleaf share URL
+- A parser that extracts the Overleaf token using
+  `/\/read\/([a-z0-9]+)#?/i`
+- A generated permanent link in the form
+  `/view/<token>`
+- One-click copy functionality
+
+### Backend (Next.js Route + Axios)
+
+The backend:
+
+1. Loads the Overleaf read page
+2. Extracts CSRF token, cookies, referer
+3. Sends the grant request to obtain project access
+4. Loads the project HTML to extract metadata
+5. Compiles the project through Overleaf's API
+6. Finds the latest PDF file
+7. Builds the final PDF download link
+8. Caches the result to avoid unnecessary recompiles
+
+Caching can be configured with NodeCache:
+
+```js
+const cache = new NodeCache({ stdTTL: 0, checkperiod: 0 });
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+A TTL of 0 effectively disables automatic expiration.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+For example:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```js
+const cache = new NodeCache({ stdTTL: 600 });
+```
 
-## Learn More
+Has a timeout of 10 minutes.
 
-To learn more about Next.js, take a look at the following resources:
+Note: Remove the checkperiod completely to enable caching.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+---
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## API Route Overview
 
-## Deploy on Vercel
+The backend route performs the following steps:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```
+/api/view/[token]
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+1. Validate token format
+2. Check in-memory cache
+3. GET /read/<token>
+4. POST /read/<token>/grant
+5. GET /project/<projectId>
+6. POST /project/<projectId>/compile
+7. Extract PDF file and return final link
+```
+
+The final response format:
+
+```json
+{
+  "pdf": "https://...compiled.pdf"
+}
+```
+
+---
+
+## Example Usage
+
+1. Open Overleaf and enable link sharing:
+   Settings → Share → Turn on "Link sharing"
+2. Copy the share URL:
+   `https://www.overleaf.com/read/abcd1234efgh`
+3. Paste into the web UI
+4. Receive:
+   `https://overleaf-viewer.vercel.app/view/abcd1234efgh`
+5. Use this link anywhere (portfolio, resume, website)
+
+The link will always resolve to the latest version of the compiled PDF.
+
+---
+
+## Project Structure
+
+```
+.
+├── app/
+│   ├── page.jsx              Frontend input UI
+│   └── api/
+│       └── overleaf/
+│           └── [token]/route.js   Overleaf handler logic
+├── public/
+├── package.json
+├── README.md
+└── ...
+```
+
+---
+
+## Requirements
+
+- Node.js 18+
+- Next.js 14+
+- Axios
+- NodeCache
+
+Install dependencies:
+
+```
+npm install
+```
+
+Run development server:
+
+```
+npm run dev
+```
+
+---
+
+## Notes
+
+- This project relies on Overleaf's internal API endpoints and HTML structure.
+  If Overleaf changes their implementation, updates may be required.
+- No login or Overleaf account access is needed.
+  Only publicly shared projects are supported.
+- This tool does not store or log PDFs.
+  Only the final Overleaf PDF link is returned.
+
+---
