@@ -11,7 +11,7 @@
   "dependencies": {
     "@vercel/analytics": "^1.5.0",
     "axios": "^1.13.2",
-    "next": "16.0.3",
+    "next": "16.0.10",
     "node-cache": "^5.1.2",
     "react": "19.2.0",
     "react-dom": "19.2.0",
